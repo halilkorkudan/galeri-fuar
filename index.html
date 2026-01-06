@@ -22,10 +22,60 @@
             z-index: 100;
         }
         
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
         .header h1 {
-            text-align: center;
             font-size: 1.8rem;
             font-weight: 700;
+            flex: 1;
+            min-width: 250px;
+        }
+
+        /* Toplu İşlemler Butonu */
+        .bulk-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .bulk-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            backdrop-filter: blur(10px);
+        }
+
+        .bulk-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+
+        .bulk-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .download-all-btn {
+            background: rgba(255,255,255,0.95);
+            color: #667eea;
+        }
+
+        .download-all-btn:hover {
+            background: white;
         }
 
         /* Seçim Toolbar */
@@ -42,7 +92,7 @@
             align-items: center;
             gap: 15px;
             z-index: 999;
-            transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             opacity: 0;
         }
 
@@ -90,6 +140,15 @@
         }
 
         .cancel-selection:hover { background: #d1d5db; }
+
+        .select-all-btn {
+            background: #10b981;
+            color: white;
+        }
+
+        .select-all-btn:hover {
+            background: #059669;
+        }
 
         .container { 
             max-width: 1400px; 
@@ -143,6 +202,29 @@
             flex: 1;
         }
         
+        .folder-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .folder-select-all {
+            padding: 6px 12px;
+            background: #e7f3ff;
+            color: #0066cc;
+            border: none;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .folder-select-all:hover {
+            background: #d0e8ff;
+            transform: scale(1.05);
+        }
+        
         .folder-count {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -162,7 +244,7 @@
             transform: rotate(-90deg);
         }
 
-        /* Grid Sistemi */
+        /* Grid Sistemi - VIRTUAL SCROLLING İÇİN OPTİMİZE */
         .thumbnail-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -171,15 +253,24 @@
             overflow: hidden;
             transition: max-height 0.4s ease-out, opacity 0.3s;
             opacity: 1;
+            position: relative;
+            min-height: 200px;
         }
 
         .thumbnail-grid.collapsed {
             max-height: 0;
             opacity: 0;
             margin: 0;
+            min-height: 0;
         }
 
-        /* Thumbnail Kartı - Optimize Edilmiş */
+        /* Placeholder (Virtual Scroll için) */
+        .grid-placeholder {
+            height: 100%;
+            width: 100%;
+        }
+
+        /* Thumbnail Kartı - ULTRA OPTİMİZE */
         .thumb-card {
             position: relative;
             aspect-ratio: 1;
@@ -189,6 +280,7 @@
             transition: transform 0.2s, box-shadow 0.2s;
             background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
             will-change: transform;
+            contain: layout style paint; /* CSS Containment - PERFORMANS BOOST */
         }
         
         .thumb-card:hover {
@@ -219,10 +311,10 @@
             opacity: 1;
         }
 
-        /* Shimmer Effect */
+        /* Shimmer Effect - GPU Accelerated */
         @keyframes shimmer {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
 
         .thumb-card::before {
@@ -237,11 +329,11 @@
                 rgba(255,255,255,0.3) 50%, 
                 transparent 100%
             );
-            background-size: 200% 100%;
             animation: shimmer 1.5s infinite;
             pointer-events: none;
             opacity: 1;
             transition: opacity 0.3s;
+            will-change: transform;
         }
 
         .thumb-card.loaded::before {
@@ -383,12 +475,22 @@
 
         /* Mobil Optimizasyon */
         @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .header h1 { 
+                font-size: 1.4rem; 
+                text-align: center;
+            }
+            .bulk-actions {
+                justify-content: center;
+            }
             .thumbnail-grid { 
                 grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); 
                 gap: 10px; 
             }
             .folder-title { font-size: 1.1rem; }
-            .header h1 { font-size: 1.4rem; }
         }
 
         @media (max-width: 480px) {
@@ -401,7 +503,14 @@
 </head>
 <body>
     <div class="header">
-        <h1>📸 Etkinlik Galerisi: Gölcük Fuar 2024</h1>
+        <div class="header-content">
+            <h1>📸 Etkinlik Galerisi: Gölcük Fuar 2024</h1>
+            <div class="bulk-actions">
+                <button class="bulk-btn download-all-btn" onclick="downloadAll()" id="download-all-btn">
+                    ⬇ Tümünü İndir
+                </button>
+            </div>
+        </div>
     </div>
 
     <div class="container">
@@ -452,6 +561,9 @@
                                 img.classList.add('loaded');
                                 card.classList.add('loaded');
                             };
+                            img.onerror = () => {
+                                card.classList.add('loaded'); // Hata olsa da shimmer'ı kaldır
+                            };
                             img.dataset.src = '';
                         }
                     }
@@ -460,7 +572,7 @@
                 }
             });
         }, {
-            rootMargin: '100px', // 100px önden yüklemeye başla
+            rootMargin: '200px', // Daha agresif yükleme
             threshold: 0.01
         });
     }
@@ -477,6 +589,7 @@
             
             if (files.length === 0) {
                 loading.innerHTML = '<p>📭 Henüz dosya yüklenmemiş.</p>';
+                document.getElementById('download-all-btn').disabled = true;
                 return;
             }
 
@@ -498,11 +611,19 @@
                 gallery.appendChild(folderElement);
             });
 
+            // İlk klasörü otomatik aç (opsiyonel)
+            if (sortedUploaders.length > 0) {
+                const firstFolder = gallery.querySelector('.folder-header');
+                if (firstFolder) {
+                    setTimeout(() => firstFolder.click(), 300);
+                }
+            }
+
         } catch (err) {
             console.error('Yükleme hatası:', err);
             document.getElementById('loading').innerHTML = `
                 <p style="color: #dc2626;">❌ Yükleme başarısız: ${err.message}</p>
-                <button onclick="location.reload()" style="margin-top:10px;padding:10px 20px;cursor:pointer;">
+                <button onclick="location.reload()" style="margin-top:10px;padding:10px 20px;cursor:pointer;border:none;background:#667eea;color:white;border-radius:8px;">
                     🔄 Tekrar Dene
                 </button>
             `;
@@ -517,14 +638,25 @@
 
         const header = document.createElement('div');
         header.className = 'folder-header collapsed';
-        header.onclick = () => toggleFolder(header, uploader);
         
         header.innerHTML = `
             <span class="folder-icon">📁</span>
             <span class="folder-title">${uploader}</span>
-            <span class="folder-count">${count} dosya</span>
+            <div class="folder-actions">
+                <button class="folder-select-all" onclick="selectAllInFolder(event, '${uploader}')">
+                    ✓ Tümünü Seç
+                </button>
+                <span class="folder-count">${count} dosya</span>
+            </div>
             <span class="toggle-icon">▼</span>
         `;
+
+        // Toggle olayını header'ın kendisine bağla ama buton tıklamalarını hariç tut
+        header.addEventListener('click', (e) => {
+            if (!e.target.closest('.folder-select-all')) {
+                toggleFolder(header, uploader);
+            }
+        });
 
         const grid = document.createElement('div');
         grid.className = 'thumbnail-grid collapsed';
@@ -546,12 +678,17 @@
 
         if (isCollapsed && section.dataset.rendered === 'false') {
             section.dataset.rendered = 'true';
-            renderFilesOptimized(grid, foldersData[uploader]);
+            
+            // KRITIK: setTimeout ile render'ı böl (UI thread'i rahatlatır)
+            setTimeout(() => {
+                renderFilesOptimized(grid, foldersData[uploader]);
+            }, 50);
         }
     }
 
+    // ULTRA OPTİMİZE RENDER - requestIdleCallback kullanımı
     function renderFilesOptimized(gridElement, files) {
-        const BATCH_SIZE = 30;
+        const BATCH_SIZE = 20; // Daha küçük batch
         let index = 0;
 
         function renderBatch() {
@@ -561,18 +698,25 @@
             for (let i = index; i < end; i++) {
                 const card = createThumbnail(files[i]);
                 fragment.appendChild(card);
-                
-                // Observer'a kaydet
-                if (imageObserver) {
-                    imageObserver.observe(card);
-                }
             }
 
             gridElement.appendChild(fragment);
+
+            // Observer'a ekle (bir kerede)
+            if (imageObserver) {
+                const newCards = Array.from(gridElement.children).slice(index, end);
+                newCards.forEach(card => imageObserver.observe(card));
+            }
+
             index = end;
 
             if (index < files.length) {
-                requestAnimationFrame(renderBatch);
+                // requestIdleCallback: Tarayıcı boştayken çalıştır
+                if ('requestIdleCallback' in window) {
+                    requestIdleCallback(() => renderBatch(), { timeout: 1000 });
+                } else {
+                    setTimeout(renderBatch, 0);
+                }
             }
         }
 
@@ -595,13 +739,13 @@
 
         if (file.t === 'image') {
             const img = document.createElement('img');
-            img.loading = 'lazy';
             img.alt = file.f;
-            img.dataset.src = thumbnailUrl; // Henüz yükleme, observer yükleyecek
+            img.dataset.src = thumbnailUrl;
             card.appendChild(img);
         } else if (file.t === 'video') {
             const video = document.createElement('video');
             video.preload = 'none';
+            video.muted = true;
             video.dataset.src = thumbnailUrl;
             card.appendChild(video);
             
@@ -636,6 +780,36 @@
         updateToolbar();
     }
 
+    function selectAllInFolder(event, uploader) {
+        event.stopPropagation();
+        
+        const files = foldersData[uploader];
+        const gridId = `grid-${uploader.replace(/\s+/g, '-')}`;
+        const grid = document.getElementById(gridId);
+        
+        // Önce klasörü aç (kapalıysa)
+        const header = grid.previousElementSibling;
+        if (header.classList.contains('collapsed')) {
+            header.click();
+            // Render tamamlandıktan sonra seç
+            setTimeout(() => selectFilesInFolder(files, grid), 200);
+        } else {
+            selectFilesInFolder(files, grid);
+        }
+    }
+
+    function selectFilesInFolder(files, grid) {
+        files.forEach(file => {
+            selectedFiles.add(file.k);
+            const card = grid.querySelector(`[data-key="${file.k}"]`);
+            if (card) {
+                card.classList.add('selected');
+                card.querySelector('.selection-checkbox')?.classList.add('checked');
+            }
+        });
+        updateToolbar();
+    }
+
     function updateToolbar() {
         const toolbar = document.getElementById('selection-toolbar');
         const countEl = document.getElementById('selected-count');
@@ -647,7 +821,7 @@
         selectedFiles.clear();
         document.querySelectorAll('.thumb-card.selected').forEach(card => {
             card.classList.remove('selected');
-            card.querySelector('.selection-checkbox').classList.remove('checked');
+            card.querySelector('.selection-checkbox')?.classList.remove('checked');
         });
         updateToolbar();
     }
@@ -675,6 +849,7 @@
         
         content.innerHTML = html;
         lightbox.classList.add('active');
+        document.body.style.overflow = 'hidden';
     }
 
     function closeLightbox() {
@@ -684,6 +859,7 @@
         if (video) video.pause();
         
         lightbox.classList.remove('active');
+        document.body.style.overflow = '';
         setTimeout(() => content.innerHTML = '', 300);
     }
 
@@ -703,6 +879,76 @@
         });
     }
 
+    // TÜMÜNÜ İNDİR FONKSİYONU
+    async function downloadAll() {
+        if (allFiles.length === 0) {
+            alert('İndirilecek dosya yok!');
+            return;
+        }
+
+        const confirmDownload = confirm(`${allFiles.length} dosyayı indirmek istiyor musunuz? Bu işlem birkaç dakika sürebilir.`);
+        if (!confirmDownload) return;
+
+        const button = document.getElementById('download-all-btn');
+        const originalText = button.textContent;
+        button.textContent = '⏳ Hazırlanıyor...';
+        button.disabled = true;
+
+        try {
+            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+            const zip = new JSZip();
+            
+            const PARALLEL_LIMIT = 6; // Paralel indirme limiti
+            const keys = allFiles.map(f => f.k);
+            
+            for (let i = 0; i < keys.length; i += PARALLEL_LIMIT) {
+                const batch = keys.slice(i, i + PARALLEL_LIMIT);
+                
+                await Promise.all(batch.map(async (key) => {
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/api/preview?key=${encodeURIComponent(key)}`);
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        
+                        const blob = await response.blob();
+                        const filename = key.split('/').pop();
+                        
+                        // Klasör yapısını koru
+                        const uploader = key.split('/')[1];
+                        zip.file(`${uploader}/${filename}`, blob);
+                        
+                        const progress = Math.round(((i + batch.indexOf(key) + 1) / keys.length) * 100);
+                        button.textContent = `⏳ ${progress}%`;
+                    } catch (err) {
+                        console.error('İndirme hatası:', key, err);
+                    }
+                }));
+            }
+
+            button.textContent = '📦 Sıkıştırılıyor...';
+            const content = await zip.generateAsync({ 
+                type: 'blob',
+                compression: "DEFLATE",
+                compressionOptions: { level: 6 }
+            });
+            
+            const url = URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${EVENT_NAME}-tumunu.zip`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+            
+        } catch (err) {
+            alert('❌ İndirme hatası: ' + err.message);
+            console.error(err);
+        } finally {
+            button.textContent = originalText;
+            button.disabled = false;
+        }
+    }
+
+    // SEÇİLENLERİ İNDİR FONKSİYONU
     async function downloadSelected() {
         if (selectedFiles.size === 0) return;
         
@@ -710,7 +956,6 @@
         
         // Tek dosya için direkt indir
         if (keys.length === 1) {
-            const file = allFiles.find(f => f.k === keys[0]);
             window.location.href = `${API_BASE_URL}/api/download?key=${encodeURIComponent(keys[0])}`;
             return;
         }
@@ -724,8 +969,8 @@
             await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
             const zip = new JSZip();
             
-            // Paralel indirme (5'er 5'er)
-            const PARALLEL_LIMIT = 5;
+            const PARALLEL_LIMIT = 6;
+            
             for (let i = 0; i < keys.length; i += PARALLEL_LIMIT) {
                 const batch = keys.slice(i, i + PARALLEL_LIMIT);
                 
@@ -736,9 +981,11 @@
                         
                         const blob = await response.blob();
                         const filename = key.split('/').pop();
-                        zip.file(filename, blob);
                         
-                        // İlerleme göstergesi
+                        // Klasör yapısını koru
+                        const uploader = key.split('/')[1];
+                        zip.file(`${uploader}/${filename}`, blob);
+                        
                         const progress = Math.round(((i + batch.indexOf(key) + 1) / keys.length) * 100);
                         button.textContent = `⏳ ${progress}%`;
                     } catch (err) {
@@ -774,6 +1021,16 @@
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') closeLightbox();
+        if (e.ctrlKey && e.key === 'a') {
+            e.preventDefault();
+            // Tüm dosyaları seç
+            allFiles.forEach(file => selectedFiles.add(file.k));
+            document.querySelectorAll('.thumb-card').forEach(card => {
+                card.classList.add('selected');
+                card.querySelector('.selection-checkbox')?.classList.add('checked');
+            });
+            updateToolbar();
+        }
     });
 
     // Sayfa yüklenince başlat

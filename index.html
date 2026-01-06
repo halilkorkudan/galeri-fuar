@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📸 Etkinlik Galerisi</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+            background: #f8f9fa; 
+            overflow-x: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header h1 {
+            text-align: center;
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        /* Seçim Toolbar */
+        .selection-toolbar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) scale(0.8);
+            background: white;
+            padding: 15px 25px;
+            border-radius: 50px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            display: none;
+            align-items: center;
+            gap: 15px;
+            z-index: 999;
+            transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            opacity: 0;
+        }
+
+        .selection-toolbar.active { 
+            display: flex; 
+            transform: translateX(-50%) scale(1);
+            opacity: 1;
+        }
+
+        .selection-count {
+            font-weight: 700;
+            color: #2d3748;
+            font-size: 0.95rem;
+        }
+
+        .toolbar-btn {
+            padding: 10px 22px;
+            border: none;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .download-selected {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .download-selected:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .download-selected:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .cancel-selection {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .cancel-selection:hover { background: #d1d5db; }
+
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            padding: 20px 15px 60px; 
+        }
+        
+        /* Klasör Bölümü */
+        .folder-section {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: box-shadow 0.3s;
+        }
+        
+        .folder-section:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+        }
+        
+        .folder-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+            cursor: pointer;
+            user-select: none;
+            transition: padding 0.3s;
+        }
+        
+        .folder-header:hover {
+            padding-bottom: 18px;
+        }
+        
+        .folder-icon { 
+            font-size: 1.6rem;
+            transition: transform 0.3s;
+        }
+        
+        .folder-header:hover .folder-icon {
+            transform: scale(1.1);
+        }
+        
+        .folder-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #2d3748;
+            flex: 1;
+        }
+        
+        .folder-count {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .toggle-icon {
+            font-size: 1.2rem;
+            transition: transform 0.3s;
+            color: #667eea;
+        }
+        
+        .folder-header.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        /* Grid Sistemi */
+        .thumbnail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 14px;
+            max-height: 100000px;
+            overflow: hidden;
+            transition: max-height 0.4s ease-out, opacity 0.3s;
+            opacity: 1;
+        }
+
+        .thumbnail-grid.collapsed {
+            max-height: 0;
+            opacity: 0;
+            margin: 0;
+        }
+
+        /* Thumbnail Kartı - Optimize Edilmiş */
+        .thumb-card {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
+            will-change: transform;
+        }
+        
+        .thumb-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            z-index: 10;
+        }
+
+        .thumb-card.selected {
+            outline: 4px solid #667eea;
+            transform: scale(0.95);
+        }
+
+        .thumb-card.selected:hover {
+            transform: scale(0.98);
+        }
+
+        /* Lazy Loading Placeholder */
+        .thumb-card img, .thumb-card video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: opacity 0.3s;
+            opacity: 0;
+        }
+
+        .thumb-card img.loaded, .thumb-card video.loaded {
+            opacity: 1;
+        }
+
+        /* Shimmer Effect */
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .thumb-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(255,255,255,0.3) 50%, 
+                transparent 100%
+            );
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            pointer-events: none;
+            opacity: 1;
+            transition: opacity 0.3s;
+        }
+
+        .thumb-card.loaded::before {
+            opacity: 0;
+        }
+
+        /* Checkbox */
+        .selection-checkbox {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 28px;
+            height: 28px;
+            background: rgba(255,255,255,0.95);
+            border: 2px solid #d1d5db;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            transition: all 0.2s;
+            backdrop-filter: blur(4px);
+        }
+
+        .selection-checkbox:hover {
+            transform: scale(1.1);
+            border-color: #667eea;
+        }
+
+        .selection-checkbox.checked {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+        }
+
+        .selection-checkbox.checked::after {
+            content: '✓';
+            color: white;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .video-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            backdrop-filter: blur(4px);
+        }
+
+        /* Lightbox */
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .lightbox.active { display: flex; }
+
+        .lightbox-content {
+            max-width: 90%;
+            max-height: 90%;
+            position: relative;
+            animation: zoomIn 0.3s;
+        }
+
+        @keyframes zoomIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .lightbox-content img, .lightbox-content video {
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.95);
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            z-index: 2001;
+            transition: all 0.2s;
+        }
+
+        .lightbox-close:hover {
+            transform: rotate(90deg);
+            background: white;
+        }
+
+        .lightbox-download {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 30px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.2s;
+        }
+
+        .lightbox-download:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .loading { 
+            text-align: center; 
+            padding: 60px; 
+            font-size: 1.2rem; 
+            color: #666; 
+        }
+
+        /* Mobil Optimizasyon */
+        @media (max-width: 768px) {
+            .thumbnail-grid { 
+                grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); 
+                gap: 10px; 
+            }
+            .folder-title { font-size: 1.1rem; }
+            .header h1 { font-size: 1.4rem; }
+        }
+
+        @media (max-width: 480px) {
+            .thumbnail-grid { 
+                grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); 
+                gap: 8px; 
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📸 Etkinlik Galerisi: Gölcük Fuar 2024</h1>
+    </div>
+
+    <div class="container">
+        <div id="loading" class="loading">⏳ Yükleniyor...</div>
+        <div id="gallery"></div>
+    </div>
+
+    <div id="selection-toolbar" class="selection-toolbar">
+        <span class="selection-count">
+            <span id="selected-count">0</span> dosya seçildi
+        </span>
+        <button class="toolbar-btn download-selected" onclick="downloadSelected()">
+            ⬇ İndir
+        </button>
+        <button class="toolbar-btn cancel-selection" onclick="clearSelection()">
+            ✕ İptal
+        </button>
+    </div>
+
+    <div id="lightbox" class="lightbox" onclick="closeLightboxOnBackground(event)">
+        <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+        <div class="lightbox-content" id="lightbox-content"></div>
+    </div>
+
+<script>
+    const API_BASE_URL = "https://api.golcukfuar.site";
+    const EVENT_NAME = "golcuk-fuar-2024";
+    
+    let allFiles = [];
+    let selectedFiles = new Set();
+    const foldersData = {};
+    
+    // Intersection Observer - Akıllı Lazy Loading
+    let imageObserver;
+
+    function initImageObserver() {
+        imageObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const card = entry.target;
+                    const img = card.querySelector('img, video');
+                    
+                    if (img && !img.classList.contains('loaded')) {
+                        const src = img.dataset.src;
+                        if (src) {
+                            img.src = src;
+                            img.onload = () => {
+                                img.classList.add('loaded');
+                                card.classList.add('loaded');
+                            };
+                            img.dataset.src = '';
+                        }
+                    }
+                    
+                    imageObserver.unobserve(card);
+                }
+            });
+        }, {
+            rootMargin: '100px', // 100px önden yüklemeye başla
+            threshold: 0.01
+        });
+    }
+
+    async function loadGallery() {
+        try {
+            const loading = document.getElementById('loading');
+            
+            const response = await fetch(`${API_BASE_URL}/api/list?event=${EVENT_NAME}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            const files = await response.json();
+            allFiles = files;
+            
+            if (files.length === 0) {
+                loading.innerHTML = '<p>📭 Henüz dosya yüklenmemiş.</p>';
+                return;
+            }
+
+            // Veriyi grupla (minimize edilmiş keyler)
+            files.forEach(file => {
+                if (!foldersData[file.u]) foldersData[file.u] = [];
+                foldersData[file.u].push(file);
+            });
+
+            const gallery = document.getElementById('gallery');
+            loading.style.display = 'none';
+
+            initImageObserver();
+
+            // Klasörleri oluştur
+            const sortedUploaders = Object.keys(foldersData).sort();
+            sortedUploaders.forEach(uploader => {
+                const folderElement = createFolderSection(uploader, foldersData[uploader].length);
+                gallery.appendChild(folderElement);
+            });
+
+        } catch (err) {
+            console.error('Yükleme hatası:', err);
+            document.getElementById('loading').innerHTML = `
+                <p style="color: #dc2626;">❌ Yükleme başarısız: ${err.message}</p>
+                <button onclick="location.reload()" style="margin-top:10px;padding:10px 20px;cursor:pointer;">
+                    🔄 Tekrar Dene
+                </button>
+            `;
+        }
+    }
+
+    function createFolderSection(uploader, count) {
+        const section = document.createElement('div');
+        section.className = 'folder-section';
+        section.dataset.rendered = 'false';
+        section.dataset.uploader = uploader;
+
+        const header = document.createElement('div');
+        header.className = 'folder-header collapsed';
+        header.onclick = () => toggleFolder(header, uploader);
+        
+        header.innerHTML = `
+            <span class="folder-icon">📁</span>
+            <span class="folder-title">${uploader}</span>
+            <span class="folder-count">${count} dosya</span>
+            <span class="toggle-icon">▼</span>
+        `;
+
+        const grid = document.createElement('div');
+        grid.className = 'thumbnail-grid collapsed';
+        grid.id = `grid-${uploader.replace(/\s+/g, '-')}`;
+
+        section.appendChild(header);
+        section.appendChild(grid);
+        
+        return section;
+    }
+
+    function toggleFolder(header, uploader) {
+        const section = header.parentElement;
+        const grid = section.querySelector('.thumbnail-grid');
+        const isCollapsed = header.classList.contains('collapsed');
+
+        header.classList.toggle('collapsed');
+        grid.classList.toggle('collapsed');
+
+        if (isCollapsed && section.dataset.rendered === 'false') {
+            section.dataset.rendered = 'true';
+            renderFilesOptimized(grid, foldersData[uploader]);
+        }
+    }
+
+    function renderFilesOptimized(gridElement, files) {
+        const BATCH_SIZE = 30;
+        let index = 0;
+
+        function renderBatch() {
+            const fragment = document.createDocumentFragment();
+            const end = Math.min(index + BATCH_SIZE, files.length);
+
+            for (let i = index; i < end; i++) {
+                const card = createThumbnail(files[i]);
+                fragment.appendChild(card);
+                
+                // Observer'a kaydet
+                if (imageObserver) {
+                    imageObserver.observe(card);
+                }
+            }
+
+            gridElement.appendChild(fragment);
+            index = end;
+
+            if (index < files.length) {
+                requestAnimationFrame(renderBatch);
+            }
+        }
+
+        renderBatch();
+    }
+
+    function createThumbnail(file) {
+        const card = document.createElement('div');
+        card.className = 'thumb-card';
+        card.dataset.key = file.k;
+
+        const thumbnailUrl = `${API_BASE_URL}/api/thumbnail?key=${encodeURIComponent(file.k)}&width=200`;
+
+        const checkbox = document.createElement('div');
+        checkbox.className = 'selection-checkbox';
+        checkbox.onclick = (e) => {
+            e.stopPropagation();
+            toggleSelection(file.k, card);
+        };
+
+        if (file.t === 'image') {
+            const img = document.createElement('img');
+            img.loading = 'lazy';
+            img.alt = file.f;
+            img.dataset.src = thumbnailUrl; // Henüz yükleme, observer yükleyecek
+            card.appendChild(img);
+        } else if (file.t === 'video') {
+            const video = document.createElement('video');
+            video.preload = 'none';
+            video.dataset.src = thumbnailUrl;
+            card.appendChild(video);
+            
+            const badge = document.createElement('div');
+            badge.className = 'video-badge';
+            badge.textContent = '▶ Video';
+            card.appendChild(badge);
+        }
+
+        card.insertBefore(checkbox, card.firstChild);
+        card.onclick = (e) => {
+            if (e.target.closest('.selection-checkbox')) return;
+            openLightbox(file);
+        };
+
+        return card;
+    }
+
+    function toggleSelection(key, card) {
+        const checkbox = card.querySelector('.selection-checkbox');
+        
+        if (selectedFiles.has(key)) {
+            selectedFiles.delete(key);
+            card.classList.remove('selected');
+            checkbox.classList.remove('checked');
+        } else {
+            selectedFiles.add(key);
+            card.classList.add('selected');
+            checkbox.classList.add('checked');
+        }
+        
+        updateToolbar();
+    }
+
+    function updateToolbar() {
+        const toolbar = document.getElementById('selection-toolbar');
+        const countEl = document.getElementById('selected-count');
+        countEl.textContent = selectedFiles.size;
+        toolbar.classList.toggle('active', selectedFiles.size > 0);
+    }
+
+    function clearSelection() {
+        selectedFiles.clear();
+        document.querySelectorAll('.thumb-card.selected').forEach(card => {
+            card.classList.remove('selected');
+            card.querySelector('.selection-checkbox').classList.remove('checked');
+        });
+        updateToolbar();
+    }
+
+    function openLightbox(file) {
+        const lightbox = document.getElementById('lightbox');
+        const content = document.getElementById('lightbox-content');
+        const previewUrl = `${API_BASE_URL}/api/preview?key=${encodeURIComponent(file.k)}`;
+        const downloadUrl = `${API_BASE_URL}/api/download?key=${encodeURIComponent(file.k)}`;
+
+        let html = '';
+        if (file.t === 'image') {
+            html = `
+                <img src="${previewUrl}" alt="${file.f}">
+                <a href="${downloadUrl}" class="lightbox-download" download>⬇ İndir</a>
+            `;
+        } else {
+            html = `
+                <video controls autoplay>
+                    <source src="${previewUrl}" type="video/mp4">
+                </video>
+                <a href="${downloadUrl}" class="lightbox-download" download>⬇ İndir</a>
+            `;
+        }
+        
+        content.innerHTML = html;
+        lightbox.classList.add('active');
+    }
+
+    function closeLightbox() {
+        const lightbox = document.getElementById('lightbox');
+        const content = document.getElementById('lightbox-content');
+        const video = content.querySelector('video');
+        if (video) video.pause();
+        
+        lightbox.classList.remove('active');
+        setTimeout(() => content.innerHTML = '', 300);
+    }
+
+    function closeLightboxOnBackground(e) {
+        if (e.target.id === 'lightbox') closeLightbox();
+    }
+
+    // JSZip yükleme
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            if (window.JSZip) return resolve();
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+
+    async function downloadSelected() {
+        if (selectedFiles.size === 0) return;
+        
+        const keys = Array.from(selectedFiles);
+        
+        // Tek dosya için direkt indir
+        if (keys.length === 1) {
+            const file = allFiles.find(f => f.k === keys[0]);
+            window.location.href = `${API_BASE_URL}/api/download?key=${encodeURIComponent(keys[0])}`;
+            return;
+        }
+
+        const button = document.querySelector('.download-selected');
+        const originalText = button.textContent;
+        button.textContent = '⏳ Hazırlanıyor...';
+        button.disabled = true;
+
+        try {
+            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+            const zip = new JSZip();
+            
+            // Paralel indirme (5'er 5'er)
+            const PARALLEL_LIMIT = 5;
+            for (let i = 0; i < keys.length; i += PARALLEL_LIMIT) {
+                const batch = keys.slice(i, i + PARALLEL_LIMIT);
+                
+                await Promise.all(batch.map(async (key) => {
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/api/preview?key=${encodeURIComponent(key)}`);
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        
+                        const blob = await response.blob();
+                        const filename = key.split('/').pop();
+                        zip.file(filename, blob);
+                        
+                        // İlerleme göstergesi
+                        const progress = Math.round(((i + batch.indexOf(key) + 1) / keys.length) * 100);
+                        button.textContent = `⏳ ${progress}%`;
+                    } catch (err) {
+                        console.error('İndirme hatası:', key, err);
+                    }
+                }));
+            }
+
+            button.textContent = '📦 Sıkıştırılıyor...';
+            const content = await zip.generateAsync({ 
+                type: 'blob',
+                compression: "DEFLATE",
+                compressionOptions: { level: 6 }
+            });
+            
+            const url = URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${EVENT_NAME}-secili-${keys.length}.zip`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+            clearSelection();
+            
+        } catch (err) {
+            alert('❌ İndirme hatası: ' + err.message);
+        } finally {
+            button.textContent = originalText;
+            button.disabled = false;
+        }
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeLightbox();
+    });
+
+    // Sayfa yüklenince başlat
+    document.addEventListener('DOMContentLoaded', loadGallery);
+</script>
+</body>
+</html>

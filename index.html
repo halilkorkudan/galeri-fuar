@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Etkinlik Galerisi</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: #f8f9fa; }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            text-align: center;
+            color: #1a1a1a;
+            font-size: 1.8rem;
+        }
+
+        /* Toplu İndirme Toolbar */
+        .selection-toolbar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 15px 25px;
+            border-radius: 50px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            display: none;
+            align-items: center;
+            gap: 15px;
+            z-index: 900;
+            transition: all 0.3s;
+        }
+
+        .selection-toolbar.active { display: flex; }
+
+        .selection-count {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .toolbar-btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .download-selected {
+            background: #2563eb;
+            color: white;
+        }
+
+        .download-selected:hover { background: #1d4ed8; }
+
+        .cancel-selection {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .cancel-selection:hover { background: #d1d5db; }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 0 20px 40px; }
+        
+        /* Klasör Bölümü */
+        .folder-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        
+        .folder-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .folder-icon { font-size: 1.5rem; }
+        
+        .folder-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2d3748;
+            flex: 1;
+        }
+        
+        .folder-count {
+            background: #e7f3ff;
+            color: #0066cc;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .toggle-icon {
+            font-size: 1.2rem;
+            transition: transform 0.2s;
+        }
+        
+        .folder-header.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        /* Thumbnail Grid */
+        .thumbnail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .thumbnail-grid.collapsed {
+            max-height: 0;
+            margin: 0;
+        }
+
+        /* Thumbnail Kartı */
+        .thumb-card {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            background: #f0f0f0;
+        }
+        
+        .thumb-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .thumb-card.selected {
+            outline: 4px solid #2563eb;
+            transform: scale(0.95);
+        }
+
+        .thumb-card img, .thumb-card video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            image-rendering: auto;
+            filter: blur(0);
+            transition: filter 0.3s;
+        }
+
+        .thumb-card img.loading {
+            filter: blur(10px);
+            background: linear-gradient(45deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 200%;
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .selection-checkbox {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border: 2px solid #d1d5db;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .selection-checkbox.checked {
+            background: #2563eb;
+            border-color: #2563eb;
+        }
+
+        .selection-checkbox.checked::after {
+            content: '✓';
+            color: white;
+            font-weight: bold;
+        }
+
+        .video-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* Lightbox Modal */
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lightbox.active { display: flex; }
+
+        .lightbox-content {
+            max-width: 90%;
+            max-height: 90%;
+            position: relative;
+        }
+
+        .lightbox-content img, .lightbox-content video {
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: 8px;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.9);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            z-index: 1001;
+        }
+
+        .lightbox-download {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .lightbox-download:hover { background: #1d4ed8; }
+
+        .loading { text-align: center; padding: 40px; font-size: 1.1rem; color: #666; }
+
+        @media (max-width: 768px) {
+            .thumbnail-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+            .folder-title { font-size: 1.1rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📸 Etkinlik Galerisi: Gölcük Fuar 2024</h1>
+    </div>
+
+    <div class="container">
+        <div id="loading" class="loading">Yükleniyor...</div>
+        <div id="gallery"></div>
+    </div>
+
+    <!-- Seçim Toolbar -->
+    <div id="selection-toolbar" class="selection-toolbar">
+        <span class="selection-count"><span id="selected-count">0</span> dosya seçildi</span>
+        <button class="toolbar-btn download-selected" onclick="downloadSelected()">⬇ İndir</button>
+        <button class="toolbar-btn cancel-selection" onclick="clearSelection()">✕ İptal</button>
+    </div>
+
+    <!-- Lightbox Modal -->
+    <div id="lightbox" class="lightbox">
+        <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+        <div class="lightbox-content" id="lightbox-content"></div>
+    </div>
+
+    <script>
+        // WORKER API URL'ini buraya girin
+        const API_BASE_URL = "https://your-worker.workers.dev"; // BURAYI DEĞİŞTİRİN!
+        const EVENT_NAME = "golcuk-fuar-2024";
+        
+        let currentFiles = [];
+        let selectedFiles = new Set();
+
+        async function loadGallery() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/list?event=${EVENT_NAME}`);
+                if (!response.ok) throw new Error("Veri çekilemedi");
+                
+                const files = await response.json();
+                currentFiles = files;
+                
+                const gallery = document.getElementById('gallery');
+                const loading = document.getElementById('loading');
+                
+                loading.style.display = 'none';
+
+                if (files.length === 0) {
+                    gallery.innerHTML = '<p style="text-align:center;">Bu etkinlikte henüz dosya yok.</p>';
+                    return;
+                }
+
+                // Klasörlere göre grupla
+                const folders = {};
+                files.forEach(file => {
+                    if (!folders[file.uploader]) {
+                        folders[file.uploader] = [];
+                    }
+                    folders[file.uploader].push(file);
+                });
+
+                // Her klasör için section oluştur
+                Object.keys(folders).sort().forEach(uploader => {
+                    const folderFiles = folders[uploader];
+                    const section = createFolderSection(uploader, folderFiles);
+                    gallery.appendChild(section);
+                });
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('loading').innerText = "Hata: " + err.message;
+            }
+        }
+
+        function createFolderSection(uploader, files) {
+            const section = document.createElement('div');
+            section.className = 'folder-section';
+
+            const header = document.createElement('div');
+            header.className = 'folder-header';
+            header.onclick = () => toggleFolder(header);
+            
+            header.innerHTML = `
+                <span class="folder-icon">📁</span>
+                <span class="folder-title">${uploader}</span>
+                <span class="folder-count">${files.length} dosya</span>
+                <span class="toggle-icon">▼</span>
+            `;
+
+            const grid = document.createElement('div');
+            grid.className = 'thumbnail-grid';
+
+            files.forEach((file, idx) => {
+                const thumb = createThumbnail(file, uploader, idx);
+                grid.appendChild(thumb);
+            });
+
+            section.appendChild(header);
+            section.appendChild(grid);
+            
+            return section;
+        }
+
+        function createThumbnail(file, uploader, idx) {
+            const card = document.createElement('div');
+            card.className = 'thumb-card';
+            card.dataset.key = file.key;
+
+            // Thumbnail URL (küçük boyut)
+            const thumbnailUrl = `${API_BASE_URL}/api/thumbnail?key=${encodeURIComponent(file.key)}`;
+
+            // Seçim checkbox'ı
+            const checkbox = document.createElement('div');
+            checkbox.className = 'selection-checkbox';
+            checkbox.onclick = (e) => {
+                e.stopPropagation();
+                toggleSelection(file.key, card);
+            };
+
+            if (file.type === 'image') {
+                const img = document.createElement('img');
+                img.loading = 'lazy';
+                img.alt = file.filename;
+                img.className = 'loading';
+                img.src = thumbnailUrl;
+                
+                img.onload = () => {
+                    img.classList.remove('loading');
+                };
+                
+                card.appendChild(img);
+            } else if (file.type === 'video') {
+                card.innerHTML = `
+                    <video preload="none" poster="">
+                        <source src="${thumbnailUrl}#t=0.1">
+                    </video>
+                    <div class="video-badge">▶ Video</div>
+                `;
+            }
+
+            card.insertBefore(checkbox, card.firstChild);
+            card.onclick = (e) => {
+                if (e.target.closest('.selection-checkbox')) return;
+                openLightbox(file);
+            };
+
+            return card;
+        }
+
+        function toggleFolder(header) {
+            header.classList.toggle('collapsed');
+            const grid = header.nextElementSibling;
+            grid.classList.toggle('collapsed');
+        }
+
+        // Seçim fonksiyonları
+        function toggleSelection(key, card) {
+            const checkbox = card.querySelector('.selection-checkbox');
+            
+            if (selectedFiles.has(key)) {
+                selectedFiles.delete(key);
+                card.classList.remove('selected');
+                checkbox.classList.remove('checked');
+            } else {
+                selectedFiles.add(key);
+                card.classList.add('selected');
+                checkbox.classList.add('checked');
+            }
+            
+            updateSelectionToolbar();
+        }
+
+        function updateSelectionToolbar() {
+            const toolbar = document.getElementById('selection-toolbar');
+            const countElement = document.getElementById('selected-count');
+            
+            countElement.textContent = selectedFiles.size;
+            
+            if (selectedFiles.size > 0) {
+                toolbar.classList.add('active');
+            } else {
+                toolbar.classList.remove('active');
+            }
+        }
+
+        function clearSelection() {
+            selectedFiles.clear();
+            document.querySelectorAll('.thumb-card').forEach(card => {
+                card.classList.remove('selected');
+                card.querySelector('.selection-checkbox').classList.remove('checked');
+            });
+            updateSelectionToolbar();
+        }
+
+        async function downloadSelected() {
+            if (selectedFiles.size === 0) return;
+
+            const keys = Array.from(selectedFiles);
+            
+            // Tek dosya ise direkt indir
+            if (keys.length === 1) {
+                const downloadUrl = `${API_BASE_URL}/api/download?key=${encodeURIComponent(keys[0])}`;
+                window.location.href = downloadUrl;
+                return;
+            }
+
+            // Çoklu dosya için JSZip kullan
+            const button = document.querySelector('.download-selected');
+            const originalText = button.textContent;
+            button.textContent = '⏳ Hazırlanıyor...';
+            button.disabled = true;
+
+            try {
+                // JSZip CDN'den yükle
+                if (!window.JSZip) {
+                    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+                }
+
+                const zip = new JSZip();
+                
+                // Her dosyayı zip'e ekle
+                for (const key of keys) {
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/api/preview?key=${encodeURIComponent(key)}`);
+                        const blob = await response.blob();
+                        const filename = key.split('/').pop();
+                        zip.file(filename, blob);
+                    } catch (err) {
+                        console.error('Dosya eklenemedi:', key, err);
+                    }
+                }
+
+                // ZIP'i oluştur ve indir
+                const content = await zip.generateAsync({ type: 'blob' });
+                const url = window.URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${EVENT_NAME}-secili-dosyalar.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                clearSelection();
+            } catch (err) {
+                alert('İndirme sırasında hata oluştu: ' + err.message);
+            } finally {
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        }
+
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        function openLightbox(file) {
+            const lightbox = document.getElementById('lightbox');
+            const content = document.getElementById('lightbox-content');
+            
+            const previewUrl = `${API_BASE_URL}/api/preview?key=${encodeURIComponent(file.key)}`;
+            const downloadUrl = `${API_BASE_URL}/api/download?key=${encodeURIComponent(file.key)}`;
+
+            if (file.type === 'image') {
+                content.innerHTML = `
+                    <img src="${previewUrl}" alt="${file.filename}">
+                    <a href="${downloadUrl}" class="lightbox-download">⬇ İndir</a>
+                `;
+            } else if (file.type === 'video') {
+                content.innerHTML = `
+                    <video controls autoplay>
+                        <source src="${previewUrl}">
+                    </video>
+                    <a href="${downloadUrl}" class="lightbox-download">⬇ İndir</a>
+                `;
+            }
+
+            lightbox.classList.add('active');
+        }
+
+        function closeLightbox() {
+            const lightbox = document.getElementById('lightbox');
+            const content = document.getElementById('lightbox-content');
+            
+            const video = content.querySelector('video');
+            if (video) video.pause();
+            
+            lightbox.classList.remove('active');
+            content.innerHTML = '';
+        }
+
+        // ESC tuşu ile kapat
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeLightbox();
+        });
+
+        // Lightbox dışına tıklayınca kapat
+        document.getElementById('lightbox').addEventListener('click', (e) => {
+            if (e.target.id === 'lightbox') closeLightbox();
+        });
+
+        document.addEventListener('DOMContentLoaded', loadGallery);
+    </script>
+</body>
+</html>

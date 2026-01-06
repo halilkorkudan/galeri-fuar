@@ -302,287 +302,206 @@
     </div>
 
     <script>
-        // WORKER API URL'ini buraya girin
-        const API_BASE_URL = "https://api.golcukfuar.site"; // BURAYI DEĞİŞTİRİN!
-        const EVENT_NAME = "golcuk-fuar-2024";
-        
-        let currentFiles = [];
-        let selectedFiles = new Set();
+    // WORKER API URL
+    const API_BASE_URL = "https://your-worker.workers.dev"; // Kendi URL'ini unutma
+    const EVENT_NAME = "golcuk-fuar-2024";
+    
+    let currentFiles = [];
+    let selectedFiles = new Set();
 
-        async function loadGallery() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/list?event=${EVENT_NAME}`);
-                if (!response.ok) throw new Error("Veri çekilemedi");
-                
-                const files = await response.json();
-                currentFiles = files;
-                
-                const gallery = document.getElementById('gallery');
-                const loading = document.getElementById('loading');
-                
-                loading.style.display = 'none';
-
-                if (files.length === 0) {
-                    gallery.innerHTML = '<p style="text-align:center;">Bu etkinlikte henüz dosya yok.</p>';
-                    return;
-                }
-
-                // Klasörlere göre grupla
-                const folders = {};
-                files.forEach(file => {
-                    if (!folders[file.uploader]) {
-                        folders[file.uploader] = [];
-                    }
-                    folders[file.uploader].push(file);
-                });
-
-                // Her klasör için section oluştur
-                Object.keys(folders).sort().forEach(uploader => {
-                    const folderFiles = folders[uploader];
-                    const section = createFolderSection(uploader, folderFiles);
-                    gallery.appendChild(section);
-                });
-
-            } catch (err) {
-                console.error(err);
-                document.getElementById('loading').innerText = "Hata: " + err.message;
-            }
-        }
-
-        function createFolderSection(uploader, files) {
-            const section = document.createElement('div');
-            section.className = 'folder-section';
-
-            const header = document.createElement('div');
-            header.className = 'folder-header';
-            header.onclick = () => toggleFolder(header);
+    async function loadGallery() {
+        try {
+            const loading = document.getElementById('loading');
+            loading.innerText = "Veriler çekiliyor...";
             
-            header.innerHTML = `
-                <span class="folder-icon">📁</span>
-                <span class="folder-title">${uploader}</span>
-                <span class="folder-count">${files.length} dosya</span>
-                <span class="toggle-icon">▼</span>
-            `;
-
-            const grid = document.createElement('div');
-            grid.className = 'thumbnail-grid';
-
-            files.forEach((file, idx) => {
-                const thumb = createThumbnail(file, uploader, idx);
-                grid.appendChild(thumb);
-            });
-
-            section.appendChild(header);
-            section.appendChild(grid);
+            const response = await fetch(`${API_BASE_URL}/api/list?event=${EVENT_NAME}`);
+            if (!response.ok) throw new Error("Veri çekilemedi");
             
-            return section;
-        }
-
-        function createThumbnail(file, uploader, idx) {
-            const card = document.createElement('div');
-            card.className = 'thumb-card';
-            card.dataset.key = file.key;
-
-            // Thumbnail URL (küçük boyut)
-            const thumbnailUrl = `${API_BASE_URL}/api/thumbnail?key=${encodeURIComponent(file.key)}`;
-
-            // Seçim checkbox'ı
-            const checkbox = document.createElement('div');
-            checkbox.className = 'selection-checkbox';
-            checkbox.onclick = (e) => {
-                e.stopPropagation();
-                toggleSelection(file.key, card);
-            };
-
-            if (file.type === 'image') {
-                const img = document.createElement('img');
-                img.loading = 'lazy';
-                img.alt = file.filename;
-                img.className = 'loading';
-                img.src = thumbnailUrl;
-                
-                img.onload = () => {
-                    img.classList.remove('loading');
-                };
-                
-                card.appendChild(img);
-            } else if (file.type === 'video') {
-                card.innerHTML = `
-                    <video preload="none" poster="">
-                        <source src="${thumbnailUrl}#t=0.1">
-                    </video>
-                    <div class="video-badge">▶ Video</div>
-                `;
-            }
-
-            card.insertBefore(checkbox, card.firstChild);
-            card.onclick = (e) => {
-                if (e.target.closest('.selection-checkbox')) return;
-                openLightbox(file);
-            };
-
-            return card;
-        }
-
-        function toggleFolder(header) {
-            header.classList.toggle('collapsed');
-            const grid = header.nextElementSibling;
-            grid.classList.toggle('collapsed');
-        }
-
-        // Seçim fonksiyonları
-        function toggleSelection(key, card) {
-            const checkbox = card.querySelector('.selection-checkbox');
+            const files = await response.json();
+            currentFiles = files;
             
-            if (selectedFiles.has(key)) {
-                selectedFiles.delete(key);
-                card.classList.remove('selected');
-                checkbox.classList.remove('checked');
-            } else {
-                selectedFiles.add(key);
-                card.classList.add('selected');
-                checkbox.classList.add('checked');
-            }
-            
-            updateSelectionToolbar();
-        }
+            const gallery = document.getElementById('gallery');
+            loading.style.display = 'none';
 
-        function updateSelectionToolbar() {
-            const toolbar = document.getElementById('selection-toolbar');
-            const countElement = document.getElementById('selected-count');
-            
-            countElement.textContent = selectedFiles.size;
-            
-            if (selectedFiles.size > 0) {
-                toolbar.classList.add('active');
-            } else {
-                toolbar.classList.remove('active');
-            }
-        }
-
-        function clearSelection() {
-            selectedFiles.clear();
-            document.querySelectorAll('.thumb-card').forEach(card => {
-                card.classList.remove('selected');
-                card.querySelector('.selection-checkbox').classList.remove('checked');
-            });
-            updateSelectionToolbar();
-        }
-
-        async function downloadSelected() {
-            if (selectedFiles.size === 0) return;
-
-            const keys = Array.from(selectedFiles);
-            
-            // Tek dosya ise direkt indir
-            if (keys.length === 1) {
-                const downloadUrl = `${API_BASE_URL}/api/download?key=${encodeURIComponent(keys[0])}`;
-                window.location.href = downloadUrl;
+            if (files.length === 0) {
+                gallery.innerHTML = '<p style="text-align:center;">Bu etkinlikte henüz dosya yok.</p>';
                 return;
             }
 
-            // Çoklu dosya için JSZip kullan
-            const button = document.querySelector('.download-selected');
-            const originalText = button.textContent;
-            button.textContent = '⏳ Hazırlanıyor...';
-            button.disabled = true;
-
-            try {
-                // JSZip CDN'den yükle
-                if (!window.JSZip) {
-                    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
-                }
-
-                const zip = new JSZip();
-                
-                // Her dosyayı zip'e ekle
-                for (const key of keys) {
-                    try {
-                        const response = await fetch(`${API_BASE_URL}/api/preview?key=${encodeURIComponent(key)}`);
-                        const blob = await response.blob();
-                        const filename = key.split('/').pop();
-                        zip.file(filename, blob);
-                    } catch (err) {
-                        console.error('Dosya eklenemedi:', key, err);
-                    }
-                }
-
-                // ZIP'i oluştur ve indir
-                const content = await zip.generateAsync({ type: 'blob' });
-                const url = window.URL.createObjectURL(content);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${EVENT_NAME}-secili-dosyalar.zip`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-
-                clearSelection();
-            } catch (err) {
-                alert('İndirme sırasında hata oluştu: ' + err.message);
-            } finally {
-                button.textContent = originalText;
-                button.disabled = false;
-            }
-        }
-
-        function loadScript(src) {
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = src;
-                script.onload = resolve;
-                script.onerror = reject;
-                document.head.appendChild(script);
+            // 1. Veriyi Grupla
+            const folders = {};
+            files.forEach(file => {
+                if (!folders[file.uploader]) folders[file.uploader] = [];
+                folders[file.uploader].push(file);
             });
-        }
 
-        function openLightbox(file) {
-            const lightbox = document.getElementById('lightbox');
-            const content = document.getElementById('lightbox-content');
+            // 2. Klasörleri Sırayla Oluştur (DOM'u şişirmemek için)
+            const sortedUploaders = Object.keys(folders).sort();
             
-            const previewUrl = `${API_BASE_URL}/api/preview?key=${encodeURIComponent(file.key)}`;
-            const downloadUrl = `${API_BASE_URL}/api/download?key=${encodeURIComponent(file.key)}`;
+            for (const uploader of sortedUploaders) {
+                const folderFiles = folders[uploader];
+                // Bölümü oluştur ve DOM'a ekle (İçini henüz doldurmadık)
+                const { section, grid } = createFolderStructure(uploader, folderFiles.length);
+                gallery.appendChild(section);
 
-            if (file.type === 'image') {
-                content.innerHTML = `
-                    <img src="${previewUrl}" alt="${file.filename}">
-                    <a href="${downloadUrl}" class="lightbox-download">⬇ İndir</a>
-                `;
-            } else if (file.type === 'video') {
-                content.innerHTML = `
-                    <video controls autoplay>
-                        <source src="${previewUrl}">
-                    </video>
-                    <a href="${downloadUrl}" class="lightbox-download">⬇ İndir</a>
-                `;
+                // 3. İçeriği Parça Parça (Async) Doldur
+                // Bu fonksiyon arka planda çalışıp grid'i dolduracak
+                await renderFilesChunked(grid, folderFiles, uploader);
             }
 
-            lightbox.classList.add('active');
+        } catch (err) {
+            console.error(err);
+            document.getElementById('loading').innerText = "Hata: " + err.message;
+        }
+    }
+
+    // Klasör iskeletini oluşturan fonksiyon (Resimler yok, sadece başlık ve boş grid)
+    function createFolderStructure(uploader, count) {
+        const section = document.createElement('div');
+        section.className = 'folder-section';
+
+        const header = document.createElement('div');
+        header.className = 'folder-header';
+        header.onclick = () => toggleFolder(header);
+        
+        header.innerHTML = `
+            <span class="folder-icon">📁</span>
+            <span class="folder-title">${uploader}</span>
+            <span class="folder-count">${count} dosya</span>
+            <span class="toggle-icon">▼</span>
+        `;
+
+        const grid = document.createElement('div');
+        grid.className = 'thumbnail-grid';
+
+        section.appendChild(header);
+        section.appendChild(grid);
+        
+        return { section, grid };
+    }
+
+    // YENİ FONKSİYON: Dosyaları 50'şerli paketler halinde çizer
+    // Bu sayede tarayıcı donmaz (Non-blocking rendering)
+    function renderFilesChunked(gridElement, files, uploader) {
+        return new Promise((resolve) => {
+            const CHUNK_SIZE = 50; // Her seferde kaç resim işlenecek
+            let index = 0;
+
+            function processChunk() {
+                const end = Math.min(index + CHUNK_SIZE, files.length);
+                
+                // Belirlenen aralıktaki dosyaları çiz
+                for (let i = index; i < end; i++) {
+                    const thumb = createThumbnail(files[i], uploader, i);
+                    gridElement.appendChild(thumb);
+                }
+
+                index += CHUNK_SIZE;
+
+                if (index < files.length) {
+                    // Tarayıcıya "nefes al" diyoruz, sonraki karede devam et
+                    requestAnimationFrame(processChunk);
+                } else {
+                    resolve(); // Bitti
+                }
+            }
+            
+            // İlk parçayı başlat
+            requestAnimationFrame(processChunk);
+        });
+    }
+
+    function createThumbnail(file, uploader, idx) {
+        const card = document.createElement('div');
+        card.className = 'thumb-card';
+        card.dataset.key = file.key;
+
+        // ÖNEMLİ: Backend'de bu parametreye göre resim küçültme (resize) işlemi yapmalısın!
+        // Eğer backend orijinal fotoyu atıyorsa burası ne yaparsak yapalım yavaş kalır.
+        const thumbnailUrl = `${API_BASE_URL}/api/thumbnail?key=${encodeURIComponent(file.key)}&width=200`; 
+
+        // Checkbox mantığı aynı
+        const checkbox = document.createElement('div');
+        checkbox.className = 'selection-checkbox';
+        checkbox.onclick = (e) => {
+            e.stopPropagation();
+            toggleSelection(file.key, card);
+        };
+
+        if (file.type === 'image') {
+            const img = document.createElement('img');
+            img.loading = 'lazy'; // Tarayıcı desteğiyle lazy load
+            img.alt = file.filename;
+            img.className = 'loading';
+            img.src = thumbnailUrl;
+            
+            img.onload = () => {
+                img.classList.remove('loading');
+            };
+            
+            card.appendChild(img);
+        } else if (file.type === 'video') {
+            card.innerHTML = `
+                <video preload="none" poster="">
+                    <source src="${thumbnailUrl}" type="video/mp4">
+                </video>
+                <div class="video-badge">▶ Video</div>
+            `;
         }
 
-        function closeLightbox() {
-            const lightbox = document.getElementById('lightbox');
-            const content = document.getElementById('lightbox-content');
-            
-            const video = content.querySelector('video');
-            if (video) video.pause();
-            
-            lightbox.classList.remove('active');
-            content.innerHTML = '';
+        card.insertBefore(checkbox, card.firstChild);
+        card.onclick = (e) => {
+            if (e.target.closest('.selection-checkbox')) return;
+            openLightbox(file);
+        };
+
+        return card;
+    }
+
+    // --- DİĞER FONKSİYONLAR AYNEN KALIYOR (toggleFolder, toggleSelection vb.) ---
+    
+    function toggleFolder(header) {
+        header.classList.toggle('collapsed');
+        const grid = header.nextElementSibling;
+        grid.classList.toggle('collapsed');
+    }
+
+    function toggleSelection(key, card) {
+        const checkbox = card.querySelector('.selection-checkbox');
+        
+        if (selectedFiles.has(key)) {
+            selectedFiles.delete(key);
+            card.classList.remove('selected');
+            checkbox.classList.remove('checked');
+        } else {
+            selectedFiles.add(key);
+            card.classList.add('selected');
+            checkbox.classList.add('checked');
         }
+        updateSelectionToolbar();
+    }
 
-        // ESC tuşu ile kapat
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closeLightbox();
+    function updateSelectionToolbar() {
+        const toolbar = document.getElementById('selection-toolbar');
+        const countElement = document.getElementById('selected-count');
+        countElement.textContent = selectedFiles.size;
+        if (selectedFiles.size > 0) toolbar.classList.add('active');
+        else toolbar.classList.remove('active');
+    }
+
+    function clearSelection() {
+        selectedFiles.clear();
+        document.querySelectorAll('.thumb-card').forEach(card => {
+            card.classList.remove('selected');
+            card.querySelector('.selection-checkbox').classList.remove('checked');
         });
+        updateSelectionToolbar();
+    }
 
-        // Lightbox dışına tıklayınca kapat
-        document.getElementById('lightbox').addEventListener('click', (e) => {
-            if (e.target.id === 'lightbox') closeLightbox();
-        });
+    // downloadSelected, loadScript, openLightbox, closeLightbox fonksiyonlarını
+    // eski kodundan aynen koruyabilirsin, onlarda değişiklik yapmadık.
 
-        document.addEventListener('DOMContentLoaded', loadGallery);
-    </script>
+    document.addEventListener('DOMContentLoaded', loadGallery);
+</script>
 </body>
 </html>
